@@ -27,6 +27,7 @@ export interface LlmsInternalConfig {
   title_selector?: string;
   content_selector?: string;
   exclude?: string[];
+  exclude_selectors?: string[];
   include?: string[];
 }
 
@@ -47,6 +48,7 @@ export interface LlmsIntegrationOptions {
   titleSelector?: string;
   contentSelector?: string;
   exclude?: string[];
+  excludeSelectors?: string[];
   include?: string[];
   verbose?: boolean;
 }
@@ -78,6 +80,16 @@ const DEFAULT_EXCLUDES = [
   "404.html",
   "**/*.xml",
   "**/*.txt",
+];
+
+// ─── Elements stripped from the content before conversion, always ──────────
+const ALWAYS_EXCLUDED_SELECTORS = [
+  "script",
+  "style",
+  "noscript",
+  "iframe",
+  "svg",
+  "[data-llms-ignore]",
 ];
 
 // ─── URL path prefixes that are API / system routes ──────────────────────────
@@ -288,8 +300,12 @@ export async function processHtml(
   let content = "";
 
   if (contentElement) {
+    const selectors = [
+      ...ALWAYS_EXCLUDED_SELECTORS,
+      ...(llmsConfig?.exclude_selectors || []),
+    ];
     contentElement
-      .querySelectorAll("script, style, noscript, iframe, svg")
+      .querySelectorAll(selectors.join(", "))
       .forEach((el) => el.remove());
 
     const turndownService = new TurndownService({
@@ -890,6 +906,8 @@ function mapOptionsToConfig(
       title_selector: options.titleSelector ?? projectLlms.title_selector,
       content_selector: options.contentSelector ?? projectLlms.content_selector,
       exclude: options.exclude ?? projectLlms.exclude ?? [],
+      exclude_selectors:
+        options.excludeSelectors ?? projectLlms.exclude_selectors ?? [],
       include: options.include ?? projectLlms.include ?? [],
     },
   };
